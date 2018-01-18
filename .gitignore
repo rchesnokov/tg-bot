@@ -19,3 +19,6 @@
 
 # Local environment
 .env
+
+#Builds
+tg-bot

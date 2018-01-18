@@ -20,5 +20,8 @@
 # Local environment
 .env
 
+# Data files
+*.xml
+
 #Builds
 tg-bot

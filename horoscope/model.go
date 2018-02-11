@@ -64,7 +64,7 @@ type forecast struct {
 
 // Provide ... returns today's horoscope for given user
 func Provide(birthdate string) string {
-	date, _ := time.Parse("2006-01-02T15:04:05Z", birthdate)
+	date, _ := time.Parse("2006-01-02", birthdate)
 	_, month, day := date.Date()
 
 	log.WithFields(log.Fields{
@@ -73,21 +73,25 @@ func Provide(birthdate string) string {
 		"day":    day,
 	}).Debug("User's birthday")
 
+	// Download new if file doesn't exist
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		err := service.DownloadFile(serviceURL, fileName)
 		utils.CheckErr(err, "Error while downloading horoscope")
 	}
 
+	// Get file's creation date
 	t, err := times.Stat(fileName)
 	if err != nil {
 		utils.CheckErr(err, "Error while reading xml stats")
 	}
 
+	// Download new file if current one has expired
 	if !t.ChangeTime().Truncate(time.Hour * 24).Equal(time.Now().Truncate(time.Hour * 24)) {
 		err := service.DownloadFile(serviceURL, fileName)
 		utils.CheckErr(err, "Error while downloading horoscope")
 	}
 
+	// Read file
 	xmlFile, err := service.ReadFile(fileName)
 	utils.CheckErr(err, "Error while reading horoscope")
 	defer xmlFile.Close()

@@ -23,7 +23,7 @@ func (uh *UpdateHandler) Process() {
 	state := *uh.state
 	update := uh.update
 
-	user := users.GetUser(update.Message.From.UserName)
+	user := users.GetOrCreateUser(update.Message.From.UserName)
 	text := strings.Replace(update.Message.Text, "@karoshi_bot", "", -1)
 
 	var name string
@@ -44,27 +44,27 @@ func (uh *UpdateHandler) Process() {
 
 	case "/horo":
 		birthdate := user.Birthdate
-		if !birthdate.Valid {
+		if birthdate == "" {
 			state[user.Name] = "birthday+horoscope"
 			msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Ой, "+name+", я не знаю дату твоего рождения 😥 \nВведи ее в формате dd-mm-yyyy")
 		} else {
-			msg = tgbotapi.NewMessage(update.Message.Chat.ID, horoscope.Provide(birthdate.String))
+			msg = tgbotapi.NewMessage(update.Message.Chat.ID, horoscope.Provide(birthdate))
 		}
 
 	default:
 		log.WithField("state", state[user.Name]).Debugf("State of user %s", user.Name)
 		switch state[user.Name] {
 		case "birthday+horoscope":
-			err := processBirthday(user, text)
+			err := handleBirthday(user, text)
 			if err != nil {
 				msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Дата в неверном формате, попробуй ввести команду заново!")
 				msg.ReplyToMessageID = update.Message.MessageID
 			} else {
-				msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Окей, я запомнил! Вот твой гороскоп. \n\n"+horoscope.Provide(user.Birthdate.String))
+				msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Окей, я запомнил! Вот твой гороскоп. \n\n"+horoscope.Provide(user.Birthdate))
 			}
 
 		case "birthday":
-			err := processBirthday(user, text)
+			err := handleBirthday(user, text)
 			if err != nil {
 				msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Дата в неверном формате, попробуй ввести команду заново!")
 				msg.ReplyToMessageID = update.Message.MessageID
@@ -84,7 +84,7 @@ func (uh *UpdateHandler) Process() {
 	bot.Send(msg)
 }
 
-func processBirthday(user *users.User, text string) error {
+func handleBirthday(user *users.User, text string) error {
 	date, err := time.Parse("02-01-2006", text)
 	if err != nil {
 		return err

@@ -1,50 +1,36 @@
 package service
 
 import (
-	"database/sql"
-
-	"github.com/rchesnokov/tg-bot/utils"
+	"gopkg.in/mgo.v2"
 )
 
-// Database ... wrapper around sql.DB
-type Database struct{ *sql.DB }
+// Database ... wrapper around mgo.Session
+type Database struct{ *mgo.Session }
 
 // DB ... contains Database
 var DB *Database
+var table string
 
 // InitDatabase ... initializes connection to database
 // and creates tables if not existant
-func InitDatabase(url string) *Database {
-	DB = connect(url)
-	DB.migrate()
+func InitDatabase(url string, tableName string) *Database {
+	DB = getSession(url)
+	table = tableName
 
 	return DB
 }
 
-// GetDatabase ... return initialized instance of Database
-func GetDatabase() *Database {
-	return DB
+// GetDatabase ... returns mongo database
+func GetDatabase() *mgo.Database {
+	return DB.DB(table)
 }
 
-func connect(url string) *Database {
-	db, err := sql.Open("postgres", url)
-	utils.CheckErr(err, "Database opening error:")
+func getSession(url string) *Database {
+	s, err := mgo.Dial(url)
 
-	err = db.Ping()
-	utils.CheckErr(err, "Database trial connection error:")
+	if err != nil {
+		panic(err)
+	}
 
-	return &Database{db}
-}
-
-func (db *Database) migrate() {
-	_, err := db.Exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id        SERIAL PRIMARY KEY,
-			username  VARCHAR(64) NOT NULL UNIQUE,
-			birthdate DATE
-      CHECK (CHAR_LENGTH(TRIM(username)) > 0)
-		);
-	`)
-
-	utils.CheckErr(err, "Database migration error")
+	return &Database{s}
 }

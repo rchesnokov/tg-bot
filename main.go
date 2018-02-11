@@ -14,7 +14,7 @@ var (
 
 func init() {
 	env = service.InitEnviroment()
-	db = service.InitDatabase(env.DatabaseURL)
+	db = service.InitDatabase(env.DatabaseURL, env.DatabaseTable)
 
 	if env.Mode == "dev" {
 		log.SetLevel(log.DebugLevel)

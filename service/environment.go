@@ -9,9 +9,10 @@ import (
 
 // Environment ... list of required env variables' values
 type Environment struct {
-	DatabaseURL string
-	Mode        string
-	Token       string
+	DatabaseURL   string
+	DatabaseTable string
+	Mode          string
+	Token         string
 }
 
 type mode string
@@ -25,11 +26,13 @@ const (
 func InitEnviroment() *Environment {
 	loadEnvFromFile()
 	databaseURL := lookupEnvVariable("DB_URL")
+	databaseTable := lookupEnvVariable("DB_TABLE")
 	mode := defineAppMode(lookupEnvVariable("ENV"))
 	token := lookupEnvVariable("TOKEN")
 
 	return &Environment{
 		databaseURL,
+		databaseTable,
 		mode,
 		token,
 	}

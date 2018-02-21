@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/go-telegram-bot-api/telegram-bot-api"
-	"github.com/rchesnokov/tg-bot/horoscope"
+	"github.com/rchesnokov/tg-bot/features"
 	"github.com/rchesnokov/tg-bot/users"
 	log "github.com/sirupsen/logrus"
 )
 
-// UpdateHandler ... holds link to db and last update from channel
+// UpdateHandler ... holds users' state and last update from channel
 type UpdateHandler struct {
 	bot    *tgbotapi.BotAPI
 	update tgbotapi.Update
@@ -23,65 +23,81 @@ func (uh *UpdateHandler) Process() {
 	state := *uh.state
 	update := uh.update
 
-	user := users.GetOrCreateUser(update.Message.From.UserName)
+	chatID := update.Message.Chat.ID
+	messageID := update.Message.MessageID
 	text := strings.Replace(update.Message.Text, "@karoshi_bot", "", -1)
 
-	var name string
-	if update.Message.From.FirstName != "" {
-		name = update.Message.From.FirstName
-	} else {
-		name = update.Message.From.UserName
+	username := update.Message.From.UserName
+	firstname := update.Message.From.FirstName
+
+	createMessage := createMessage(chatID)
+
+	user := users.FindByUsername(username)
+	if user == nil {
+		user = users.Create(username, firstname)
 	}
 
-	log.WithField("userState", state[user.Name]).Debugf("Current state of user %s", user.Name)
+	name := user.GetName()
 
 	var msg tgbotapi.MessageConfig
 
+	log.WithField("userState", state[user.Username]).Debugf("Current state of user %s", user.Username)
+
 	switch text {
 	case "/birthday":
-		state[user.Name] = "birthday"
-		msg = tgbotapi.NewMessage(update.Message.Chat.ID, name+", введи дату своего рождения в формате dd-mm-yyyy")
+		state[user.Username] = "birthday"
+		msg = createMessage(name + ", введи дату своего рождения в формате dd-mm-yyyy")
+
+	case "/bydlo":
+		msg = createMessage(features.PrintSwearingRating())
+		msg.ParseMode = "HTML"
 
 	case "/horo":
 		birthdate := user.Birthdate
 		if birthdate == "" {
-			state[user.Name] = "birthday+horoscope"
-			msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Ой, "+name+", я не знаю дату твоего рождения 😥 \nВведи ее в формате dd-mm-yyyy")
+			state[user.Username] = "birthday+horoscope"
+			msg = createMessage("Ой, " + name + ", я не знаю дату твоего рождения 😥 \nВведи ее в формате dd-mm-yyyy")
 		} else {
-			msg = tgbotapi.NewMessage(update.Message.Chat.ID, horoscope.Provide(birthdate))
+			msg = createMessage(features.ProvideHoroscope(birthdate))
 		}
 
 	default:
-		log.WithField("state", state[user.Name]).Debugf("State of user %s", user.Name)
-		switch state[user.Name] {
+		log.WithField("state", state[user.Username]).Debugf("State of user %s", user.Username)
+
+		switch state[user.Username] {
 		case "birthday+horoscope":
 			err := handleBirthday(user, text)
 			if err != nil {
-				msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Дата в неверном формате, попробуй ввести команду заново!")
-				msg.ReplyToMessageID = update.Message.MessageID
+				msg = createMessage("Дата в неверном формате, попробуй ввести команду заново!")
+				msg.ReplyToMessageID = messageID
 			} else {
-				msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Окей, я запомнил! Вот твой гороскоп. \n\n"+horoscope.Provide(user.Birthdate))
+				msg = createMessage("Окей, я запомнил! Вот твой гороскоп. \n\n" + features.ProvideHoroscope(user.Birthdate))
 			}
 
 		case "birthday":
 			err := handleBirthday(user, text)
 			if err != nil {
-				msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Дата в неверном формате, попробуй ввести команду заново!")
-				msg.ReplyToMessageID = update.Message.MessageID
+				msg = createMessage("Дата в неверном формате, попробуй ввести команду заново!")
+				msg.ReplyToMessageID = messageID
 			} else {
-				msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Окей, я запомнил!")
-				msg.ReplyToMessageID = update.Message.MessageID
+				msg = createMessage("Окей, я запомнил!")
+				msg.ReplyToMessageID = messageID
 			}
 
 		default:
-			msg = tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-			msg.ReplyToMessageID = update.Message.MessageID
+			handleSwearing(user, text)
 		}
 
-		state[user.Name] = ""
+		state[user.Username] = ""
 	}
 
 	bot.Send(msg)
+}
+
+func createMessage(chatID int64) func(string) tgbotapi.MessageConfig {
+	return func(message string) tgbotapi.MessageConfig {
+		return tgbotapi.NewMessage(chatID, message)
+	}
 }
 
 func handleBirthday(user *users.User, text string) error {
@@ -93,4 +109,11 @@ func handleBirthday(user *users.User, text string) error {
 	user.SetBirthdate(date.Format("2006-01-02"))
 
 	return nil
+}
+
+func handleSwearing(user *users.User, text string) {
+	c := features.FilterSwearing(text)
+	if c > 0 {
+		user.SetSwearing(c)
+	}
 }

@@ -25,3 +25,9 @@
 
 #Builds
 tg-bot
+
+#Vendor
+!vendor/vendor.json
+vendor/github.com/
+vendor/golang.org/
+vendor/gopkg.in/

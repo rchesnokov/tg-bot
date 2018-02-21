@@ -1,4 +1,4 @@
-package horoscope
+package features
 
 import (
 	"encoding/xml"
@@ -15,7 +15,7 @@ import (
 )
 
 const serviceURL = "http://ignio.com/r/export/utf/xml/daily/bus.xml"
-const fileName = "horoscope/horoscope.xml"
+const horoscopeFileName = "resources/horoscope.xml"
 
 var signTrans = map[string]string{
 	"Aries":       "Овен ♈️",
@@ -62,8 +62,8 @@ type forecast struct {
 	Pisces      *signDates `xml:"pisces"`
 }
 
-// Provide ... returns today's horoscope for given user
-func Provide(birthdate string) string {
+// ProvideHoroscope ... returns today's horoscope for given user
+func ProvideHoroscope(birthdate string) string {
 	date, _ := time.Parse("2006-01-02", birthdate)
 	_, month, day := date.Date()
 
@@ -74,25 +74,25 @@ func Provide(birthdate string) string {
 	}).Debug("User's birthday")
 
 	// Download new if file doesn't exist
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		err := service.DownloadFile(serviceURL, fileName)
+	if _, err := os.Stat(horoscopeFileName); os.IsNotExist(err) {
+		err := service.DownloadFile(serviceURL, horoscopeFileName)
 		utils.CheckErr(err, "Error while downloading horoscope")
 	}
 
 	// Get file's creation date
-	t, err := times.Stat(fileName)
+	t, err := times.Stat(horoscopeFileName)
 	if err != nil {
 		utils.CheckErr(err, "Error while reading xml stats")
 	}
 
 	// Download new file if current one has expired
 	if !t.ChangeTime().Truncate(time.Hour * 24).Equal(time.Now().Truncate(time.Hour * 24)) {
-		err := service.DownloadFile(serviceURL, fileName)
+		err := service.DownloadFile(serviceURL, horoscopeFileName)
 		utils.CheckErr(err, "Error while downloading horoscope")
 	}
 
 	// Read file
-	xmlFile, err := service.ReadFile(fileName)
+	xmlFile, err := service.ReadFile(horoscopeFileName)
 	utils.CheckErr(err, "Error while reading horoscope")
 	defer xmlFile.Close()
 

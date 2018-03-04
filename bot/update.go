@@ -23,9 +23,15 @@ func (uh *UpdateHandler) Process() {
 	state := *uh.state
 	update := uh.update
 
+	chatIsGroup := update.Message.Chat.IsGroup()
 	chatID := update.Message.Chat.ID
 	messageID := update.Message.MessageID
 	text := strings.Replace(update.Message.Text, "@karoshi_bot", "", -1)
+
+	if !chatIsGroup {
+		log.Debugln("This is not a group message.")
+		return
+	}
 
 	username := update.Message.From.UserName
 	firstname := update.Message.From.FirstName

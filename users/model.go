@@ -18,21 +18,6 @@ type User struct {
 	Swearing  uint32        `json:"swearing" bson:"swearing"`
 }
 
-// GetOrCreateUser ... returns User by name or
-// creates new one if user with this name doesn't exist
-// func GetOrCreateUser(username string) *User {
-// 	user := FindUserByName(username)
-
-// 	if user == nil {
-// 		user = CreateUser(username)
-// 		log.WithField("id", user.Id.Hex()).Debug("User created")
-// 	} else {
-// 		log.WithField("id", user.Id.Hex()).Debug("User exist")
-// 	}
-
-// 	return user
-// }
-
 // FindByUsername ... queries user by name
 func FindByUsername(username string) *User {
 	u := User{}
